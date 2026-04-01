@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     .from('places')
     .select(`
       id, title, description, lat, lng, status,
+      bydel,
       car_accessible, stroller_friendly, rainy_day,
       has_toilet, has_shelter, difficulty,
       min_age, max_age, walk_minutes, created_at,
@@ -36,6 +37,9 @@ export async function GET(request: NextRequest) {
 
   if (searchParams.get('city_id')) {
     query = query.eq('city_id', searchParams.get('city_id')!)
+  }
+  if (searchParams.get('bydel')) {
+    query = query.eq('bydel', searchParams.get('bydel')!)
   }
   if (searchParams.get('stroller_friendly') === 'true') {
     query = query.eq('stroller_friendly', true)
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { title, description, lat, lng, city_id, ...rest } = body
+  const { title, description, lat, lng, city_id, bydel, ...rest } = body
 
   if (!title || !lat || !lng || !city_id) {
     return NextResponse.json({ error: 'title, lat, lng, city_id are required' }, { status: 400 })
@@ -79,7 +83,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('places')
-    .insert({ title, description, lat, lng, city_id, submitted_by: user.id, status: 'pending', ...rest })
+    .insert({ title, description, lat, lng, city_id, bydel: bydel ?? null, submitted_by: user.id, status: 'pending', ...rest })
     .select('id')
     .single()
 

@@ -69,6 +69,12 @@ export default function PlaceCard({ place }: { place: PlaceWithExtras }) {
           {place.title}
         </h3>
 
+        {place.bydel && (
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+            {place.bydel}
+          </p>
+        )}
+
         {place.description && (
           <p className="text-sm text-gray-500 line-clamp-2">
             {place.description}

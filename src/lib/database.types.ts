@@ -29,6 +29,7 @@ export type Database = {
         Row: {
           id: string;
           city_id: string;
+          bydel: string | null;
           submitted_by: string | null;
           title: string;
           description: string | null;

@@ -4,10 +4,15 @@ import { useState, useTransition } from 'react'
 import { submitPlace } from '@/lib/actions/places'
 import type { City } from '@/lib/database.types'
 import LocationPicker from '@/components/map/LocationPicker'
+import { BERGEN_BYDELER, isBergenCity } from '@/lib/bergen'
 
 export default function PlaceForm({ cities }: { cities: City[] }) {
   const [isPending, startTransition] = useTransition()
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [selectedCityId, setSelectedCityId] = useState(cities[0]?.id ?? '')
+
+  const selectedCity = cities.find((city) => city.id === selectedCityId) ?? null
+  const showBydelField = isBergenCity(selectedCity?.name)
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -30,6 +35,8 @@ export default function PlaceForm({ cities }: { cities: City[] }) {
               id="city_id"
               name="city_id"
               required
+              value={selectedCityId}
+              onChange={(e) => setSelectedCityId(e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             >
               {cities.map((c) => (
@@ -37,6 +44,30 @@ export default function PlaceForm({ cities }: { cities: City[] }) {
               ))}
             </select>
           </div>
+
+          {showBydelField && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="bydel">
+                Omrade i Bergen
+              </label>
+              <select
+                id="bydel"
+                name="bydel"
+                defaultValue=""
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Velg bydel</option>
+                {BERGEN_BYDELER.map((bydel) => (
+                  <option key={bydel} value={bydel}>
+                    {bydel}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-400">
+                Bruk den offisielle bydelen dersom stedet ligger i Bergen kommune.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="title">Stedsnavn</label>

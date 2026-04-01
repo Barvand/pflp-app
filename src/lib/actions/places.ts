@@ -3,12 +3,44 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { BERGEN_BYDELER } from '@/lib/bergen'
+
+async function requireAdmin() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) redirect('/login')
+
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to load profile: ${error.message}`)
+  }
+
+  if (profile.role !== 'admin') {
+    throw new Error('Forbidden')
+  }
+
+  return { user }
+}
 
 export async function submitPlace(formData: FormData) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
+
+  const rawBydel = (formData.get('bydel') as string | null)?.trim() ?? ''
+  const bydel = rawBydel && BERGEN_BYDELER.includes(rawBydel as (typeof BERGEN_BYDELER)[number])
+    ? rawBydel
+    : null
 
   const tags = (formData.get('tags') as string)
     .split(',')
@@ -19,6 +51,7 @@ export async function submitPlace(formData: FormData) {
     .from('places')
     .insert({
       city_id: formData.get('city_id') as string,
+      bydel,
       submitted_by: user.id,
       title: formData.get('title') as string,
       description: (formData.get('description') as string) || null,
@@ -49,55 +82,70 @@ export async function submitPlace(formData: FormData) {
 }
 
 export async function deletePlace(placeId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  await requireAdmin()
+  const supabase = createAdminClient()
 
-  if (!user) redirect('/login')
+  const { data: place, error: placeError } = await supabase
+    .from('places')
+    .select('id')
+    .eq('id', placeId)
+    .maybeSingle()
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  if (placeError) {
+    throw new Error(`Failed to load place: ${placeError.message}`)
+  }
 
-  if (profile?.role !== 'admin') throw new Error('Forbidden')
+  if (!place) {
+    throw new Error('Place not found')
+  }
 
-  await supabase.from('moderation_log').delete().eq('place_id', placeId)
-  await supabase.from('place_tags').delete().eq('place_id', placeId)
-  await supabase.from('place_images').delete().eq('place_id', placeId)
-  await supabase.from('reviews').delete().eq('place_id', placeId)
-  await supabase.from('saves').delete().eq('place_id', placeId)
-  await supabase.from('places').delete().eq('id', placeId)
+  const deletions = [
+    { table: 'moderation_log', column: 'place_id' },
+    { table: 'place_tags', column: 'place_id' },
+    { table: 'place_images', column: 'place_id' },
+    { table: 'reviews', column: 'place_id' },
+    { table: 'saves', column: 'place_id' },
+    { table: 'places', column: 'id' },
+  ] as const
+
+  for (const { table, column } of deletions) {
+    const query = supabase.from(table).delete()
+    const { error } = column === 'id' ? await query.eq('id', placeId) : await query.eq('place_id', placeId)
+
+    if (error) {
+      throw new Error(`Failed to delete ${table}: ${error.message}`)
+    }
+  }
 
   revalidatePath('/admin')
   revalidatePath('/')
+  revalidatePath(`/place/${placeId}`)
 }
 
 export async function moderatePlace(placeId: string, action: 'approved' | 'rejected') {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user } = await requireAdmin()
+  const supabase = createAdminClient()
 
-  if (!user) redirect('/login')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') throw new Error('Forbidden')
-
-  await supabase
+  const { error: updateError } = await supabase
     .from('places')
     .update({ status: action })
     .eq('id', placeId)
 
-  await supabase.from('moderation_log').insert({
+  if (updateError) {
+    throw new Error(`Failed to update place status: ${updateError.message}`)
+  }
+
+  const { error: logError } = await supabase.from('moderation_log').insert({
     place_id: placeId,
     reviewed_by: user.id,
     action,
   })
 
+  if (logError) {
+    throw new Error(`Failed to write moderation log: ${logError.message}`)
+  }
+
   revalidatePath('/admin')
   revalidatePath('/')
+  revalidatePath(`/place/${placeId}`)
 }

@@ -2,13 +2,14 @@
 
 import { useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
 import PlaceCard from '@/components/places/PlaceCard'
+import HeroBanner from '@/components/layout/HeroBanner'
 import type { Place } from '@/lib/database.types'
+import { BERGEN_BYDELER, isBergenCity } from '@/lib/bergen'
 
 const AllPlacesMap = dynamic(() => import('@/components/map/AllPlacesMap'), {
   ssr: false,
-  loading: () => <div className="h-full w-full animate-pulse bg-gray-100" />,
+  loading: () => <div className="h-full w-full animate-pulse bg-stone-100" />,
 })
 
 type ShapedPlace = Place & {
@@ -19,11 +20,26 @@ type ShapedPlace = Place & {
 }
 
 const FILTERS = [
-  { label: '🍼 Barnevogn', key: 'stroller_friendly' as const },
-  { label: '☔ Regnværsdag', key: 'rainy_day' as const },
-  { label: '🚗 Biltilgang', key: 'car_accessible' as const },
-  { label: '🚻 Toalett', key: 'has_toilet' as const },
-  { label: '⛺ Ly', key: 'has_shelter' as const },
+  { label: 'Barnevogn', key: 'stroller_friendly' as const },
+  { label: 'Regnvaersdag', key: 'rainy_day' as const },
+  { label: 'Biltilgang', key: 'car_accessible' as const },
+  { label: 'Toalett', key: 'has_toilet' as const },
+  { label: 'Ly', key: 'has_shelter' as const },
+]
+
+const highlights = [
+  {
+    title: 'Lokale favoritter',
+    body: 'Steder som ofte deles fra foreldre til foreldre, ikke bare de mest kjente attraksjonene.',
+  },
+  {
+    title: 'Praktisk for barn',
+    body: 'Filter pa vogn, bil, ly, toalett og avstand gjor det raskere a velge noe som faktisk fungerer.',
+  },
+  {
+    title: 'Laget for deling',
+    body: 'Nar du finner et fint sted, kan du sende det inn sa andre familier far glede av det.',
+  },
 ]
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
@@ -49,6 +65,9 @@ export default function HomePageClient({ cityName, places }: HomePageClientProps
   const [nearMe, setNearMe] = useState(false)
   const [radiusKm, setRadiusKm] = useState(2)
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
+  const [selectedBydel, setSelectedBydel] = useState('')
+
+  const showBydelFilter = isBergenCity(cityName)
 
   const handleNearMe = useCallback(() => {
     if (nearMe) {
@@ -57,10 +76,12 @@ export default function HomePageClient({ cityName, places }: HomePageClientProps
       setGeoError(null)
       return
     }
+
     if (!navigator.geolocation) {
-      setGeoError('Nettleseren din støtter ikke posisjonering.')
+      setGeoError('Nettleseren din stotter ikke posisjonering.')
       return
     }
+
     setGeoLoading(true)
     setGeoError(null)
     navigator.geolocation.getCurrentPosition(
@@ -70,7 +91,7 @@ export default function HomePageClient({ cityName, places }: HomePageClientProps
         setGeoLoading(false)
       },
       () => {
-        setGeoError('Kunne ikke hente posisjon. Sjekk posiseringstillatelser i nettleseren.')
+        setGeoError('Kunne ikke hente posisjon. Sjekk tillatelser i nettleseren.')
         setGeoLoading(false)
       },
     )
@@ -86,152 +107,196 @@ export default function HomePageClient({ cityName, places }: HomePageClientProps
   }, [])
 
   const filteredPlaces = places.filter((p) => {
+    if (selectedBydel && p.bydel !== selectedBydel) return false
+
     if (nearMe && userLocation) {
       if (haversineKm(userLocation.lat, userLocation.lng, p.lat, p.lng) > radiusKm) return false
     }
+
     for (const key of activeFilters) {
       if (!p[key as keyof Place]) return false
     }
+
     return true
   })
 
   return (
     <>
-      {/* ── Map hero ── */}
-      <div className="relative w-full" style={{ height: '80vh' }}>
-        <AllPlacesMap
-          places={places}
-          userLocation={userLocation}
-          radiusKm={radiusKm}
-        />
+      <HeroBanner cityName={cityName} placeCount={places.length} />
 
-        {/* Overlay card */}
-        <div className="absolute left-4 top-4 z-[1000] w-72 rounded-2xl bg-white/95 p-5 shadow-2xl backdrop-blur-sm">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-rose-500" />
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              {cityName ? `Utforsker ${cityName}` : 'Familieventyr venter'}
-            </span>
-          </div>
-
-          <h1 className="text-xl font-black leading-tight text-gray-900">
-            De beste stedene for dine barn
-            {cityName && (
-              <span className="mt-0.5 block text-base font-semibold text-rose-500">
-                i {cityName}
-              </span>
-            )}
-          </h1>
-
-          <p className="mt-1 text-xs text-gray-400">
-            {places.length} steder · 100 % gratis å bruke
-          </p>
-
-          <div className="mt-4 flex flex-col gap-2">
-            <a
-              href="#places"
-              className="block rounded-xl bg-rose-500 px-4 py-2.5 text-center text-sm font-bold text-white shadow-md transition hover:bg-rose-600"
+      <section className="mx-auto max-w-6xl px-4 py-10">
+        <div className="grid gap-4 md:grid-cols-3">
+          {highlights.map((item) => (
+            <div
+              key={item.title}
+              className="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm"
             >
-              Utforsk steder →
-            </a>
-            <Link
-              href="/submit"
-              className="block rounded-xl border border-gray-200 px-4 py-2 text-center text-sm font-medium text-gray-600 transition hover:bg-gray-50"
-            >
-              Legg til et sted
-            </Link>
-          </div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                Derfor finnes appen
+              </p>
+              <h2 className="mt-3 text-xl font-semibold text-stone-900">{item.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-stone-600">{item.body}</p>
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
 
-      {/* ── Places section ── */}
-      <main id="places" className="mx-auto max-w-6xl px-4 py-10">
-        {/* Filter bar */}
-        <div className="mb-6 flex flex-wrap gap-2">
-          {/* Near-me button */}
-          <button
-            onClick={handleNearMe}
-            disabled={geoLoading}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition-colors select-none ${
-              nearMe
-                ? 'border-blue-500 bg-blue-500 text-white shadow-sm'
-                : 'border-gray-200 bg-white text-gray-600 hover:border-blue-400 hover:text-blue-700'
-            }`}
-          >
-            {geoLoading ? (
-              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            ) : (
-              '📍'
+      <main id="places" className="mx-auto max-w-6xl px-4 pb-14">
+        <section className="rounded-[2rem] border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+                Utforsk kartet
+              </p>
+              <h2 className="mt-3 text-3xl font-semibold text-stone-900">
+                Se hvilke steder som finnes
+                {cityName ? ` i ${cityName}` : ''}.
+              </h2>
+              <p className="mt-3 max-w-xl text-base leading-7 text-stone-600">
+                Start med kartet for oversikt, eller bruk filtrene under for a finne steder som passer
+                dagen du har foran deg. Dette er ment for raske, enkle familieturer.
+              </p>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl bg-stone-100 p-4">
+                  <p className="text-2xl font-semibold text-stone-900">{places.length}</p>
+                  <p className="mt-1 text-sm text-stone-600">steder klare til bruk</p>
+                </div>
+                <div className="rounded-2xl bg-amber-50 p-4">
+                  <p className="text-2xl font-semibold text-amber-800">
+                    {activeFilters.size + (selectedBydel ? 1 : 0)}
+                  </p>
+                  <p className="mt-1 text-sm text-amber-700">aktive filtre</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-[1.5rem] border border-stone-200">
+              <div className="h-[320px] w-full bg-stone-100 sm:h-[380px]">
+                <AllPlacesMap places={places} userLocation={userLocation} radiusKm={radiusKm} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+              Filtrer steder
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-stone-900">
+              Finn noe som passer barna dine akkurat i dag.
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              Velg praktiske behov for turen. Du kan ogsa vise steder naer deg dersom du vil ha
+              noe raskt og enkelt.
+            </p>
+          </div>
+
+          <div className="mb-6 flex flex-wrap gap-2">
+            {showBydelFilter && (
+              <select
+                value={selectedBydel}
+                onChange={(e) => setSelectedBydel(e.target.value)}
+                className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 outline-none transition-colors hover:border-amber-300 focus:border-amber-400"
+              >
+                <option value="">Alle bydeler</option>
+                {BERGEN_BYDELER.map((bydel) => (
+                  <option key={bydel} value={bydel}>
+                    {bydel}
+                  </option>
+                ))}
+              </select>
             )}
-            Nær meg
-          </button>
 
-          {/* Radius selector — only visible when nearMe is active */}
-          {nearMe && (
-            <div className="flex items-center gap-1">
-              {[2, 5, 10, 20].map((km) => (
-                <button
-                  key={km}
-                  onClick={() => setRadiusKm(km)}
-                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors select-none ${
-                    radiusKm === km
-                      ? 'border-blue-500 bg-blue-500 text-white'
-                      : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:text-blue-600'
-                  }`}
-                >
-                  {km} km
-                </button>
+            <button
+              onClick={handleNearMe}
+              disabled={geoLoading}
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                nearMe
+                  ? 'border-sky-600 bg-sky-600 text-white'
+                  : 'border-stone-300 bg-white text-stone-700 hover:border-sky-400 hover:text-sky-700'
+              }`}
+            >
+              {geoLoading ? 'Laster posisjon...' : nearMe ? 'Viser steder naer deg' : 'Finn steder naer meg'}
+            </button>
+
+            {nearMe && (
+              <div className="flex flex-wrap gap-2">
+                {[2, 5, 10, 20].map((km) => (
+                  <button
+                    key={km}
+                    onClick={() => setRadiusKm(km)}
+                    className={`rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
+                      radiusKm === km
+                        ? 'border-stone-900 bg-stone-900 text-white'
+                        : 'border-stone-300 bg-white text-stone-600 hover:border-stone-400 hover:text-stone-900'
+                    }`}
+                  >
+                    {km} km
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => toggleFilter(f.key)}
+                className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                  activeFilters.has(f.key)
+                    ? 'border-amber-300 bg-amber-50 text-amber-900'
+                    : 'border-stone-300 bg-white text-stone-700 hover:border-amber-300 hover:text-amber-800'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {geoError && <p className="mb-4 text-sm text-red-600">{geoError}</p>}
+
+          {nearMe && userLocation && (
+            <p className="mb-4 text-sm font-medium text-sky-700">
+              {filteredPlaces.length === 0
+                ? `Ingen steder innen ${radiusKm} km fra deg`
+                : `Viser ${filteredPlaces.length} sted${filteredPlaces.length !== 1 ? 'er' : ''} innen ${radiusKm} km fra deg`}
+            </p>
+          )}
+
+          {!nearMe && selectedBydel && (
+            <p className="mb-4 text-sm font-medium text-amber-800">
+              Viser {filteredPlaces.length} sted{filteredPlaces.length !== 1 ? 'er' : ''} i {selectedBydel}.
+            </p>
+          )}
+
+          {!nearMe && activeFilters.size === 0 && !selectedBydel && (
+            <p className="mb-4 text-sm text-stone-500">
+              Viser alle godkjente steder delt av foreldre og lokale bidragsytere.
+            </p>
+          )}
+
+          {filteredPlaces.length === 0 ? (
+            <div className="rounded-[2rem] border-2 border-dashed border-stone-300 bg-stone-50 px-6 py-20 text-center">
+              <h3 className="text-xl font-semibold text-stone-900">
+                {nearMe || selectedBydel
+                  ? 'Ingen steder passer dette soket enda'
+                  : 'Ingen steder er publisert enda'}
+              </h3>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-stone-600">
+                {nearMe || selectedBydel
+                  ? 'Prov a utvide soket eller fjerne noen filtre for a se flere forslag.'
+                  : 'Nar nye steder blir sendt inn og godkjent, dukker de opp her.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredPlaces.map((place) => (
+                <PlaceCard key={place.id} place={place} />
               ))}
             </div>
           )}
-
-          {/* Attribute filters */}
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => toggleFilter(f.key)}
-              className={`rounded-full border px-3 py-1 text-sm transition-colors select-none ${
-                activeFilters.has(f.key)
-                  ? 'border-rose-400 bg-rose-50 text-rose-700'
-                  : 'border-gray-200 bg-white text-gray-600 hover:border-rose-300 hover:text-rose-600'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Geo error */}
-        {geoError && <p className="mb-4 text-sm text-red-500">{geoError}</p>}
-
-        {/* Near-me result count */}
-        {nearMe && userLocation && (
-          <p className="mb-4 text-sm font-medium text-blue-600">
-            {filteredPlaces.length === 0
-              ? `Ingen steder innen ${radiusKm} km fra deg`
-              : `Viser ${filteredPlaces.length} sted${filteredPlaces.length !== 1 ? 'er' : ''} innen ${radiusKm} km fra deg`}
-          </p>
-        )}
-
-        {filteredPlaces.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-24 text-center">
-            <span className="text-5xl">{nearMe ? '📍' : '🗺️'}</span>
-            <h2 className="mt-4 text-lg font-semibold text-gray-700">
-              {nearMe ? 'Ingen steder nær deg' : 'Ingen steder ennå'}
-            </h2>
-            <p className="mt-1 text-sm text-gray-400">
-              {nearMe
-                ? 'Prøv å fjerne filtre eller beveg deg til et annet område.'
-                : 'Godkjente steder vil vises her etter at de er sendt inn og gjennomgått.'}
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredPlaces.map((place) => (
-              <PlaceCard key={place.id} place={place} />
-            ))}
-          </div>
-        )}
+        </section>
       </main>
     </>
   )
