@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import UserMenu from '@/components/auth/UserMenu'
+import { AccentButton, BrandButton } from '@/components/ui/Button'
 
 export default async function Navbar() {
   const supabase = await createClient()
@@ -29,12 +30,9 @@ export default async function Navbar() {
           </Link>
 
           {user && (
-            <Link
-              href="/submit"
-              className="rounded-md border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
-            >
+            <AccentButton href="/submit" className="min-h-9 rounded-md px-3 py-1.5">
               + Legg til sted
-            </Link>
+            </AccentButton>
           )}
 
           {user ? (
@@ -44,12 +42,9 @@ export default async function Navbar() {
               role={profile?.role ?? 'contributor'}
             />
           ) : (
-            <Link
-              href="/login"
-              className="rounded-md bg-blue-600 px-3 py-1.5 text-white hover:bg-blue-700 transition-colors"
-            >
+            <BrandButton href="/login" className="min-h-9 rounded-md px-3 py-1.5">
               Logg inn
-            </Link>
+            </BrandButton>
           )}
         </nav>
       </div>

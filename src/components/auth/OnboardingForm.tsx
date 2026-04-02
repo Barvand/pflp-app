@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { BrandButton } from '@/components/ui/Button'
 
 export default function OnboardingForm({ userId, defaultName }: { userId: string; defaultName: string }) {
   const [name, setName] = useState(defaultName)
@@ -17,10 +18,7 @@ export default function OnboardingForm({ userId, defaultName }: { userId: string
 
     setStatus('loading')
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ display_name: name.trim() })
-      .eq('id', userId)
+    const { error } = await supabase.from('profiles').update({ display_name: name.trim() }).eq('id', userId)
 
     if (error) {
       setError(error.message)
@@ -45,7 +43,7 @@ export default function OnboardingForm({ userId, defaultName }: { userId: string
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Anna"
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
         />
         <p className="mt-1 text-xs text-gray-400">Dette er det andre brukere vil se.</p>
       </div>
@@ -54,13 +52,14 @@ export default function OnboardingForm({ userId, defaultName }: { userId: string
         <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
       )}
 
-      <button
+      <BrandButton
         type="submit"
         disabled={status === 'loading' || !name.trim()}
-        className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+        fullWidth
+        className="rounded-lg"
       >
-        {status === 'loading' ? 'Lagrer…' : 'Fortsett'}
-      </button>
+        {status === 'loading' ? 'Lagrer...' : 'Fortsett'}
+      </BrandButton>
     </form>
   )
 }

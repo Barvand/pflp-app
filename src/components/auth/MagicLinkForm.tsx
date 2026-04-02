@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { BrandButton } from '@/components/ui/Button'
 
 export default function MagicLinkForm() {
   const [email, setEmail] = useState('')
@@ -36,11 +37,14 @@ export default function MagicLinkForm() {
         <h2 className="font-semibold text-gray-900">Sjekk e-posten din</h2>
         <p className="mt-1 text-sm text-gray-500">
           Vi sendte en innloggingslenke til <span className="font-medium text-gray-700">{email}</span>.
-          Klikk på den for å fortsette – ingen passord nødvendig.
+          Klikk pa den for a fortsette, ingen passord nodvendig.
         </p>
         <button
-          onClick={() => { setStatus('idle'); setEmail('') }}
-          className="mt-4 text-xs text-blue-600 hover:underline"
+          onClick={() => {
+            setStatus('idle')
+            setEmail('')
+          }}
+          className="mt-4 text-xs text-[var(--brand)] hover:underline"
         >
           Bruk en annen e-post
         </button>
@@ -61,7 +65,7 @@ export default function MagicLinkForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
         />
       </div>
 
@@ -69,13 +73,9 @@ export default function MagicLinkForm() {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{errorMsg}</p>
       )}
 
-      <button
-        type="submit"
-        disabled={status === 'loading'}
-        className="w-full rounded-lg bg-blue-600 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-      >
-        {status === 'loading' ? 'Sender…' : 'Send magisk lenke'}
-      </button>
+      <BrandButton type="submit" disabled={status === 'loading'} fullWidth className="rounded-lg">
+        {status === 'loading' ? 'Sender...' : 'Send magisk lenke'}
+      </BrandButton>
     </form>
   )
 }

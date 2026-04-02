@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { addCity, toggleCityActive } from '@/lib/actions/cities'
 import Link from 'next/link'
+import { BrandButton } from '@/components/ui/Button'
 
 export const revalidate = 0
 
@@ -98,12 +99,9 @@ export default async function AdminCitiesPage() {
             Gjør aktiv umiddelbart (vises i skjemaet for å legge til steder)
           </label>
 
-          <button
-            type="submit"
-            className="self-start rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-          >
+          <BrandButton type="submit" className="self-start rounded-lg px-5 py-2">
             Legg til by
-          </button>
+          </BrandButton>
         </form>
       </section>
 
